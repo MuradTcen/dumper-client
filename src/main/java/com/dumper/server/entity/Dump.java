@@ -16,8 +16,4 @@ public class Dump {
     private String filename;
     private char type;
 
-    public int compareByLastLsn(Dump another) {
-        return lastLsn.compareTo(another.getLastLsn());
-    }
-
 }

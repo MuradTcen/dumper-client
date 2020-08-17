@@ -1,6 +1,7 @@
 package com.dumper.server.service.impl;
 
 import com.dumper.server.entity.Dump;
+import com.dumper.server.entity.ShortDump;
 import com.dumper.server.enums.Query;
 import com.dumper.server.enums.Version;
 import com.dumper.server.repository.BackupsetRepository;
@@ -149,18 +150,47 @@ public class DumpServiceImpl implements DumpService {
 
     public void downloadActualDumps() {
         if (isCompatible()) {
+            List<ShortDump> dumpsForRestore = new ArrayList<>();
             for (Dump dump : downloadDumpList()) {
                 String[] filename = dump.getFilename().split("/");
                 String name = filename[filename.length - 1];
                 downloadFile(downloadUrl + name, directory + name);
+
+                dumpsForRestore.add(new ShortDump(name, dump.getType()));
             }
+
+            executeRestoreDumps(dumpsForRestore);
         } else {
             log.error("The server version is not compatible");
         }
     }
 
+    private void executeRestoreDumps(List<ShortDump> dumps) {
+        log.info("Start restoring.. ");
+        // todo: Не удалось получить монопольный доступ, так как база данных используется
+        if (dumps.size() == 1) {
+            executeQuery(dumps.get(0).getFilename(), Query.RESTORE_FULL_RECOVERY);
+        } else {
+            for (ShortDump dump : dumps) {
+                switch (dump.getType()) {
+                    case 'D':
+                        executeQuery(dump.getFilename(), Query.RESTORE_FULL);
+                        break;
+                    case 'I':
+                        executeQuery(dump.getFilename(), Query.RESTORE_DIFFERENTIAL);
+                        break;
+                    case 'L':
+                        executeQuery(dump.getFilename(), Query.RESTORE_LOG);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
     private void downloadFile(String url, String outputFilename) {
-        log.info("Donloading from " + url + " to " + outputFilename);
+        log.info("Downloading from " + url + " to " + outputFilename);
         try {
             FileUtils.copyURLToFile(
                     new URL(url),
