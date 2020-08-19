@@ -8,6 +8,10 @@ import lombok.RequiredArgsConstructor;
 public enum Query {
 
     VERSION("SELECT @@VERSION"),
+    USE_MASTER("USE master"),
+    USE_MSDB("USE masdb"),
+    SET_MULTI_USER("ALTER DATABASE [database] SET MULTI_USER"),
+    CHECK_AVAILABILITY("SELECT COUNT(*) FROM sys.sysprocesses WHERE dbid = DB_ID([database])"),
 
     FULL_BACKUP("BACKUP DATABASE [database] TO DISK = N'directory' WITH COPY_ONLY, STATS = 10"),
     DIFFERENTIAL_BACKUP("BACKUP DATABASE [database] TO DISK = N'directory' WITH DIFFERENTIAL, STATS = 10"),
