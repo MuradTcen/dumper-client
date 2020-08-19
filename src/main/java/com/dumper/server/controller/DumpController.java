@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -27,28 +28,22 @@ public class DumpController {
     @GetMapping(path = "restore")
     public ResponseEntity<String> restoreFullDump() {
         String filename = LocalDate.now() + FULL_POSTFIX;
-        dumpService.executeQuery(filename, Query.RESTORE_FULL);
+        dumpService.executeDumpQuery(filename, Query.RESTORE_FULL);
 
-        return ResponseEntity
-                .ok().body("Full dump restored");
+        return ResponseEntity.ok().body("Full dump restored");
     }
 
     @GetMapping(path = "restore-diff")
     public ResponseEntity<String> restoreDifferentialDump() {
         String filename = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH")) + DIFFERENTIAL_POSTFIX;
-        dumpService.executeQuery(filename, Query.RESTORE_FULL);
+        dumpService.executeDumpQuery(filename, Query.RESTORE_FULL);
 
-        return ResponseEntity
-                .ok().body("Differential dump restored");
+        return ResponseEntity.ok().body("Differential dump restored");
     }
 
     @GetMapping(path = "start-restore")
-    public ResponseEntity<String> tryRestoreDumps() {
+    public ResponseEntity<String> tryRestoreDumps(@RequestParam String databaseName) {
+        return ResponseEntity.ok().body(dumpService.restore(databaseName));
 
-        dumpService.downloadActualDumps();
-
-        return ResponseEntity
-                .ok()
-                .body("ok");
     }
 }
