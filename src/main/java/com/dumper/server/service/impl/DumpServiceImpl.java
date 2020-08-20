@@ -187,7 +187,12 @@ public class DumpServiceImpl implements DumpService {
         }
 
         List<ShortDump> dumpsForRestore = new ArrayList<>();
-        for (Dump dump : downloadDumpList(databaseName)) {
+        List<Dump> dumps = downloadDumpList(databaseName);
+        if (dumps.isEmpty()) {
+            return "No dumps available";
+        }
+
+        for (Dump dump : dumps) {
             String[] filename = dump.getFilename().split("/");
             String name = filename[filename.length - 1];
             downloadFile(downloadUrl + name, directory + name);
@@ -195,8 +200,7 @@ public class DumpServiceImpl implements DumpService {
             dumpsForRestore.add(new ShortDump(name, dump.getType()));
         }
 
-        String result = executeRestoreDumps(dumpsForRestore).stream()
-                .collect(Collectors.joining(""));
+        String result = executeRestoreDumps(dumpsForRestore).stream().collect(Collectors.joining(""));
 
         setIfRequiredUserAccess(databaseName);
 
