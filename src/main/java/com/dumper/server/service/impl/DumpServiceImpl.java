@@ -25,6 +25,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -72,8 +73,9 @@ public class DumpServiceImpl implements DumpService {
     private final ObjectMapper mapper;
     private final RestTemplate restTemplate;
 
-    int CONNECT_TIMEOUT = 10000;
-    int READ_TIMEOUT = 10000;
+    private static final int CONNECT_TIMEOUT = 10000;
+    private static final int READ_TIMEOUT = 10000;
+    private static final String NO_DUMPS = "No dumps available";
 
     // todo: мне не нравится, как здесь получилось
     @SneakyThrows
@@ -115,6 +117,14 @@ public class DumpServiceImpl implements DumpService {
                 executeCommand(getCommands(command)));
     }
 
+    public String executeUserQuery(String userQuery) {
+        Command command = getCommandWithUserQuery(userQuery);
+        setQuery(command, Query.USER_QUERY);
+        return String.format("Executed query %s \n\n with output %s\n\n",
+                userQuery,
+                executeCommand(getCommands(command)));
+    }
+
     @Override
     public String executeQuery(Query query) {
         Command command = getBaseCommand();
@@ -148,12 +158,20 @@ public class DumpServiceImpl implements DumpService {
     private String getQueryWithParams(Command command, Query query) {
         return query.getQuery().replace(DATABASE_KEY.getKey(), command.getParams().get(DATABASE_KEY.getKey()))
                 .replace(DIRECTORY_KEY.getKey(), command.getParams().get(DIRECTORY_KEY.getKey()) +
-                        command.getParams().get(FILENAME_KEY.getKey()));
+                        command.getParams().get(FILENAME_KEY.getKey()))
+                .replace(USER_QUERY_KEY.getKey(), command.getParams().get(USER_QUERY_KEY.getKey()));
     }
 
     public Command getCommandWithFileName(String filename) {
         Command command = getBaseCommand();
         command.getParams().put(FILENAME_KEY.getKey(), filename);
+
+        return command;
+    }
+
+    public Command getCommandWithUserQuery(String query) {
+        Command command = getBaseCommand();
+        command.getParams().put(USER_QUERY_KEY.getKey(), query);
 
         return command;
     }
@@ -176,6 +194,26 @@ public class DumpServiceImpl implements DumpService {
 
     @Override
     public String restore(String databaseName) {
+        String initialCheck = initialCheck(databaseName);
+        if (initialCheck != null) {
+            return initialCheck;
+        }
+
+        List<Dump> dumps = downloadDumpList(databaseName);
+        String dumpsCheck = dumpsCheck(dumps);
+        if (dumpsCheck != null) {
+            return dumpsCheck;
+        }
+
+        String result = executeRestoreDumps(getDownloadedDumpsForeRestore(dumps)).stream()
+                .collect(Collectors.joining(""));
+
+        setIfRequiredUserAccess(databaseName);
+
+        return result;
+    }
+
+    private String initialCheck(String databaseName) {
         CheckResult compatibility = checkCompatibility();
         if (!compatibility.isCorrect()) {
             return compatibility.getMessage();
@@ -186,25 +224,36 @@ public class DumpServiceImpl implements DumpService {
             return availability.getMessage();
         }
 
-        List<ShortDump> dumpsForRestore = new ArrayList<>();
-        List<Dump> dumps = downloadDumpList(databaseName);
+        return null;
+    }
+
+    private String dumpsCheck(List<Dump> dumps) {
         if (dumps.isEmpty()) {
-            return "No dumps available";
+            return NO_DUMPS;
         }
 
+        CheckResult freeSpace = checkFreeSpace(getDrivers(dumps), getTotalSize(dumps));
+        if (!freeSpace.isCorrect()) {
+            return freeSpace.getMessage();
+        }
+
+        CheckResult existsFiles = checkExistingFiles(dumps);
+        if (!existsFiles.isCorrect()) {
+            return existsFiles.getMessage();
+        }
+
+        return null;
+    }
+
+    private List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
+        List<ShortDump> dumpsForRestore = new ArrayList<>();
         for (Dump dump : dumps) {
             String[] filename = dump.getFilename().split("/");
             String name = filename[filename.length - 1];
             downloadFile(downloadUrl + name, directory + name);
-
             dumpsForRestore.add(new ShortDump(name, dump.getType()));
         }
-
-        String result = executeRestoreDumps(dumpsForRestore).stream().collect(Collectors.joining(""));
-
-        setIfRequiredUserAccess(databaseName);
-
-        return result;
+        return dumpsForRestore;
     }
 
     @Override
@@ -313,5 +362,58 @@ public class DumpServiceImpl implements DumpService {
             executeQuery(Query.SET_MULTI_USER);
             executeQuery(Query.USE_MSDB);
         }
+    }
+
+    private BigDecimal getTotalSize(List<Dump> dumps) {
+        BigDecimal total = dumps.stream()
+                .map(x -> x.getBackupSize())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        log.info(String.format("Total size of dumps: %s bytes", total));
+
+        return total;
+    }
+
+    // todo: непонятно как на windows будет работать
+    private List<String> getDrivers(List<Dump> dumps) {
+        List<String> drivers = dumps.stream()
+                .map(x -> x.getFilename())
+                .distinct()
+                .collect(Collectors.toList());
+        log.info("Got drivers: " + drivers.stream().collect(Collectors.joining(", ")));
+
+        return drivers;
+    }
+
+    public CheckResult checkFreeSpace(List<String> drivers, BigDecimal sizeOfDumps) {
+        long freeSpace = drivers.stream()
+                .map(x -> new File(x).getFreeSpace())
+                .reduce(0L, Long::sum);
+
+        String disks = drivers.stream().collect(Collectors.joining(", "));
+        log.info(String.format("Free space of disk %s ", disks));
+
+        return new CheckResult(BigDecimal.valueOf(freeSpace).compareTo(sizeOfDumps) > 0,
+                String.format("Not enough free space on disk %s . Size of dumps is %s. Free space is %s", disks, sizeOfDumps, freeSpace));
+    }
+
+    public CheckResult checkExistingFiles(List<Dump> dumps) {
+        List<Dump> dumpsWithExistingFile = dumps.stream()
+                .filter(x -> {
+                    File file = new File(x.getPhysicalName());
+                    if (file.exists() && !file.isDirectory()) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }).collect(Collectors.toList());
+
+        String files = dumpsWithExistingFile.stream()
+                .map(x -> x.getPhysicalName())
+                .collect(Collectors.joining(", "));
+
+        String out = String.format("Dumps with existing file %s ", files);
+        log.info(out);
+
+        return new CheckResult(dumpsWithExistingFile.isEmpty(), out);
     }
 }
