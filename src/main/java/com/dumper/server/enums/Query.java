@@ -9,7 +9,8 @@ public enum Query {
 
     VERSION("SELECT @@VERSION"),
     USE_MASTER("USE master"),
-    USE_MSDB("USE masdb"),
+    USE_MSDB("USE msdb"),
+    USER_QUERY("user_query"),
     SET_MULTI_USER("ALTER DATABASE [database] SET MULTI_USER"),
     CHECK_AVAILABILITY("SELECT COUNT(*) FROM sys.sysprocesses WHERE dbid = DB_ID([database])"),
 

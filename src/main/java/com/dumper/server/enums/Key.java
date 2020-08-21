@@ -11,6 +11,7 @@ public enum Key {
     QUERY_KEY("-Q"),
     USER_KEY("-U"),
     SERVER_KEY("-S"),
+    USER_QUERY_KEY("user_query"),
     DIRECTORY_KEY("directory"),
     DATABASE_KEY("database"),
     FILENAME_KEY("filename");
