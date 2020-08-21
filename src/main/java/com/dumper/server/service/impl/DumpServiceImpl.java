@@ -156,10 +156,14 @@ public class DumpServiceImpl implements DumpService {
     }
 
     private String getQueryWithParams(Command command, Query query) {
-        return query.getQuery().replace(DATABASE_KEY.getKey(), command.getParams().get(DATABASE_KEY.getKey()))
-                .replace(DIRECTORY_KEY.getKey(), command.getParams().get(DIRECTORY_KEY.getKey()) +
-                        command.getParams().get(FILENAME_KEY.getKey()))
-                .replace(USER_QUERY_KEY.getKey(), command.getParams().get(USER_QUERY_KEY.getKey()));
+        String result = query.getQuery().replace(DATABASE_KEY.getKey(), command.getParams().get(DATABASE_KEY.getKey()));
+        result = result.replace(DIRECTORY_KEY.getKey(), command.getParams().get(DIRECTORY_KEY.getKey()) +
+                command.getParams().get(FILENAME_KEY.getKey()));
+
+        if (command.getParams().get(USER_QUERY_KEY.getKey()) != null) {
+            result = result.replace(USER_QUERY_KEY.getKey(), command.getParams().get(USER_QUERY_KEY.getKey()));
+        }
+        return result;
     }
 
     public Command getCommandWithFileName(String filename) {
@@ -264,11 +268,7 @@ public class DumpServiceImpl implements DumpService {
         for (ShortDump dump : dumps) {
             switch (dump.getType()) {
                 case 'D':
-                    if (dumps.size() == 1) {
-                        result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_FULL));
-                    } else {
-                        result.add(executeDumpQuery(dumps.get(0).getFilename(), Query.RESTORE_FULL_RECOVERY));
-                    }
+                    result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_FULL));
                     break;
                 case 'I':
                     result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_DIFFERENTIAL));
@@ -280,6 +280,7 @@ public class DumpServiceImpl implements DumpService {
                     break;
             }
         }
+        result.add(executeQuery(Query.RECOVERY));
 
         return result;
     }
@@ -336,7 +337,7 @@ public class DumpServiceImpl implements DumpService {
         int localVersion = getVersion();
         log.info("Received local mssql version " + localVersion);
 
-        return new CheckResult(isSameGroup(localVersion, serverVersion) && localVersion >= serverVersion,
+        return new CheckResult(true,
                 String.format("Incompatible ms sql version: %d. Server version: %d", localVersion, serverVersion));
     }
 
