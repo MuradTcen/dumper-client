@@ -200,13 +200,13 @@ public class CommandServiceImpl implements CommandService {
     @Override
     public String restore(String databaseName) {
         String initialCheck = dumpService.initialCheck(databaseName);
-        if (initialCheck != null) {
+        if (!initialCheck.isEmpty()) {
             return initialCheck;
         }
 
         List<Dump> dumps = dumpService.downloadDumpList(databaseName);
         String dumpsCheck = dumpService.dumpsCheck(dumps);
-        if (dumpsCheck != null) {
+        if (!dumpsCheck.isEmpty()) {
             return dumpsCheck;
         }
 

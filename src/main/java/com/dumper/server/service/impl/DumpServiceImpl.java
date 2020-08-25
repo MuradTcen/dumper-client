@@ -72,17 +72,19 @@ public class DumpServiceImpl implements DumpService {
      */
     @Override
     public String initialCheck(String databaseName) {
+        StringBuilder result = new StringBuilder();
+
         CheckResult compatibility = checkCompatibility();
         if (!compatibility.isCorrect()) {
-            return compatibility.getMessage();
+            result.append(compatibility.getMessage());
         }
 
         CheckResult availability = checkAvailability(databaseName);
         if (!availability.isCorrect()) {
-            return availability.getMessage();
+            result.append("\n" + availability.getMessage());
         }
 
-        return null;
+        return result.toString();
     }
 
     /**
@@ -92,21 +94,22 @@ public class DumpServiceImpl implements DumpService {
      */
     @Override
     public String dumpsCheck(List<Dump> dumps) {
+        StringBuilder result = new StringBuilder();
         if (dumps.isEmpty()) {
-            return NO_DUMPS;
+            result.append(NO_DUMPS);
         }
 
         CheckResult freeSpace = checkFreeSpace(getDrivers(dumps), getTotalSize(dumps));
         if (!freeSpace.isCorrect()) {
-            return freeSpace.getMessage();
+            result.append("\n" + freeSpace.getMessage());
         }
 
         CheckResult existsFiles = checkExistingFiles(dumps);
         if (!existsFiles.isCorrect()) {
-            return existsFiles.getMessage();
+            result.append("\n" + existsFiles.getMessage());
         }
 
-        return null;
+        return result.toString();
     }
 
     /**
