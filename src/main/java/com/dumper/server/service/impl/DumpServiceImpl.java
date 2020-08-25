@@ -65,7 +65,11 @@ public class DumpServiceImpl implements DumpService {
     private static final int READ_TIMEOUT = 10000;
     private static final String NO_DUMPS = "No dumps available";
 
-
+    /**
+     * Первоначальные проверки, перед скачиванием дампов
+     * @param databaseName
+     * @return
+     */
     @Override
     public String initialCheck(String databaseName) {
         CheckResult compatibility = checkCompatibility();
@@ -81,6 +85,11 @@ public class DumpServiceImpl implements DumpService {
         return null;
     }
 
+    /**
+     * Проверки с полученными дампами
+     * @param dumps
+     * @return
+     */
     @Override
     public String dumpsCheck(List<Dump> dumps) {
         if (dumps.isEmpty()) {
@@ -100,6 +109,11 @@ public class DumpServiceImpl implements DumpService {
         return null;
     }
 
+    /**
+     * Получаем список дампов для восставновления
+     * @param dumps
+     * @return
+     */
     @Override
     public List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
         List<ShortDump> dumpsForRestore = new ArrayList<>();
@@ -112,8 +126,7 @@ public class DumpServiceImpl implements DumpService {
         return dumpsForRestore;
     }
 
-    @Override
-    public void downloadFile(String url, String outputFilename) {
+    private void downloadFile(String url, String outputFilename) {
         log.info("Downloading from " + url + " to " + outputFilename);
         try {
             FileUtils.copyURLToFile(
@@ -127,6 +140,11 @@ public class DumpServiceImpl implements DumpService {
         }
     }
 
+    /**
+     * Скачиваем список актуальных дампов
+     * @param databaseName
+     * @return
+     */
     @Override
     public List<Dump> downloadDumpList(String databaseName) {
         String response = restTemplate.getForObject(actualDumpsUrl + "?databaseName=" + databaseName, String.class);
@@ -145,8 +163,7 @@ public class DumpServiceImpl implements DumpService {
         return dumps;
     }
 
-    @Override
-    public int getVersion() {
+    private int getVersion() {
         String version = repository.getVersion();
 
         Pattern pattern = Pattern.compile("Server \\d{4}");
@@ -157,8 +174,7 @@ public class DumpServiceImpl implements DumpService {
 
     // todo: лучше сделать явную проверку через compatibility
     // https://docs.microsoft.com/ru-ru/sql/t-sql/statements/alter-database-transact-sql-compatibility-level?view=sql-server-ver15
-    @Override
-    public CheckResult checkCompatibility() {
+    private CheckResult checkCompatibility() {
         int serverVersion = restTemplate.getForObject(versionUrl, Integer.class);
         log.info("Received server mssql version " + serverVersion);
 
@@ -169,14 +185,12 @@ public class DumpServiceImpl implements DumpService {
                 String.format("Incompatible ms sql version: %d. Server version: %d", localVersion, serverVersion));
     }
 
-    @Override
-    public boolean isSameGroup(int a, int b) {
+    private boolean isSameGroup(int a, int b) {
         return Version.FIRST_GROUP.getVersions().contains(a) && Version.FIRST_GROUP.getVersions().contains(b) ||
                 Version.SECOND_GROUP.getVersions().contains(a) && Version.SECOND_GROUP.getVersions().contains(b);
     }
 
-    @Override
-    public CheckResult checkAvailability(String databaseName) {
+    private CheckResult checkAvailability(String databaseName) {
         int count = repository.getCountConnectionsForDatabase(databaseName);
         log.info("Count " + count + " connections to database " + databaseName);
 
@@ -184,8 +198,7 @@ public class DumpServiceImpl implements DumpService {
                 String.format("Drop %d connections to database %s", count, databaseName));
     }
 
-    @Override
-    public BigDecimal getTotalSize(List<Dump> dumps) {
+    private BigDecimal getTotalSize(List<Dump> dumps) {
         BigDecimal total = dumps.stream()
                 .map(x -> x.getBackupSize())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -195,8 +208,7 @@ public class DumpServiceImpl implements DumpService {
     }
 
     // todo: непонятно как на windows будет работать
-    @Override
-    public List<String> getDrivers(List<Dump> dumps) {
+    private List<String> getDrivers(List<Dump> dumps) {
         List<String> drivers = dumps.stream()
                 .map(x -> x.getFilename())
                 .distinct()
@@ -206,8 +218,7 @@ public class DumpServiceImpl implements DumpService {
         return drivers;
     }
 
-    @Override
-    public CheckResult checkFreeSpace(List<String> drivers, BigDecimal sizeOfDumps) {
+    private CheckResult checkFreeSpace(List<String> drivers, BigDecimal sizeOfDumps) {
         long freeSpace = drivers.stream()
                 .map(x -> new File(x).getFreeSpace())
                 .reduce(0L, Long::sum);
@@ -219,8 +230,7 @@ public class DumpServiceImpl implements DumpService {
                 String.format("Not enough free space on disk %s . Size of dumps is %s. Free space is %s", disks, sizeOfDumps, freeSpace));
     }
 
-    @Override
-    public CheckResult checkExistingFiles(List<Dump> dumps) {
+    private CheckResult checkExistingFiles(List<Dump> dumps) {
         List<Dump> dumpsWithExistingFile = dumps.stream()
                 .filter(x -> {
                     File file = new File(x.getPhysicalName());
