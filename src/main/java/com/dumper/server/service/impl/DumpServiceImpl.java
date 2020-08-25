@@ -7,6 +7,7 @@ import com.dumper.server.enums.Query;
 import com.dumper.server.enums.UserAccess;
 import com.dumper.server.enums.Version;
 import com.dumper.server.repository.BackupsetRepository;
+import com.dumper.server.service.CommandService;
 import com.dumper.server.service.DumpService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,32 +29,21 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.dumper.server.enums.Key.*;
 
-// todo: убрать ссылку после ознакомления
-// https://docs.microsoft.com/ru-ru/sql/t-sql/statements/backup-transact-sql?view=sql-server-ver15
 @Slf4j
 @RequiredArgsConstructor
 @Service
 @PropertySource("classpath:application.properties")
 public class DumpServiceImpl implements DumpService {
-
-    @Value(value = "${spring.datasource.username:username}")
-    private String username;
-
-    @Value(value = "${spring.datasource.password:password}")
-    private String password;
-
-    @Value(value = "${server:localhost}")
-    private String server;
-
-    @Value(value = "${database.name:TestDB}")
-    private String database;
 
     @Value(value = "${directory:directory}")
     private String directory;
@@ -67,8 +57,6 @@ public class DumpServiceImpl implements DumpService {
     @Value(value = "${api.server.download.url}")
     private String downloadUrl;
 
-    private final static String BASE_COMMAND = "/opt/mssql-tools/bin/sqlcmd";
-
     private final BackupsetRepository repository;
     private final ObjectMapper mapper;
     private final RestTemplate restTemplate;
@@ -77,147 +65,9 @@ public class DumpServiceImpl implements DumpService {
     private static final int READ_TIMEOUT = 10000;
     private static final String NO_DUMPS = "No dumps available";
 
-    // todo: мне не нравится, как здесь получилось
-    @SneakyThrows
-    @Override
-    public String executeCommand(String[] command) {
-        Runtime runtime = Runtime.getRuntime();
-        String errors, out;
-        InputStream errorStream = null, outStream = null;
-
-        log.info("Start executing command: " + Arrays.toString(command));
-        try {
-            Process proc = runtime.exec(command);
-            proc.waitFor();
-            errorStream = proc.getErrorStream();
-            outStream = proc.getInputStream();
-            errors = IOUtils.toString(errorStream, StandardCharsets.UTF_8);
-            out = IOUtils.toString(outStream, StandardCharsets.UTF_8);
-            log.info("out: " + out);
-            if (!errors.isEmpty()) {
-                log.error("errors: " + errors);
-                return errors;
-            }
-            return out;
-        } catch (Exception e) {
-            errorStream.close();
-            outStream.close();
-            log.error("Error during process: " + e.getLocalizedMessage());
-        }
-        return "Error during process..";
-    }
 
     @Override
-    public String executeDumpQuery(String filename, Query query) {
-        Command command = getCommandWithFileName(filename);
-        setQuery(command, query);
-        return String.format("Executed command %s for filename %s \n\n with output %s\n\n",
-                query.getQuery(),
-                filename,
-                executeCommand(getCommands(command)));
-    }
-
-    public String executeUserQuery(String userQuery) {
-        Command command = getCommandWithUserQuery(userQuery);
-        setQuery(command, Query.USER_QUERY);
-        return String.format("Executed query %s \n\n with output %s\n\n",
-                userQuery,
-                executeCommand(getCommands(command)));
-    }
-
-    @Override
-    public String executeQuery(Query query) {
-        Command command = getBaseCommand();
-        setQuery(command, query);
-        return executeCommand(getCommands(command));
-    }
-
-    public String[] getCommands(Command command) {
-        List<String> result = new ArrayList<>();
-        result.add(BASE_COMMAND);
-
-        command.getParams().forEach((k, v) -> {
-            if (k.contains("-")) {
-                result.add(k);
-                result.add(v);
-            }
-        });
-
-        return result.toArray(new String[0]);
-    }
-
-    @Data
-    static class Command {
-        private HashMap<String, String> params;
-    }
-
-    private void setQuery(Command command, Query query) {
-        command.getParams().put(QUERY_KEY.getKey(), getQueryWithParams(command, query));
-    }
-
-    private String getQueryWithParams(Command command, Query query) {
-        String result = query.getQuery().replace(DATABASE_KEY.getKey(), command.getParams().get(DATABASE_KEY.getKey()));
-        result = result.replace(DIRECTORY_KEY.getKey(), command.getParams().get(DIRECTORY_KEY.getKey()) +
-                command.getParams().get(FILENAME_KEY.getKey()));
-
-        if (command.getParams().get(USER_QUERY_KEY.getKey()) != null) {
-            result = result.replace(USER_QUERY_KEY.getKey(), command.getParams().get(USER_QUERY_KEY.getKey()));
-        }
-        return result;
-    }
-
-    public Command getCommandWithFileName(String filename) {
-        Command command = getBaseCommand();
-        command.getParams().put(FILENAME_KEY.getKey(), filename);
-
-        return command;
-    }
-
-    public Command getCommandWithUserQuery(String query) {
-        Command command = getBaseCommand();
-        command.getParams().put(USER_QUERY_KEY.getKey(), query);
-
-        return command;
-    }
-
-    public Command getBaseCommand() {
-        Command command = new Command();
-
-        command.setParams(new HashMap<String, String>() {{
-            put(DIRECTORY_KEY.getKey(), directory);
-            put(DATABASE_KEY.getKey(), database);
-            put(PASSWORD_KEY.getKey(), password);
-            put(USER_KEY.getKey(), username);
-            put(SERVER_KEY.getKey(), server);
-        }});
-
-        log.info("Created command with params: " + command.getParams());
-
-        return command;
-    }
-
-    @Override
-    public String restore(String databaseName) {
-        String initialCheck = initialCheck(databaseName);
-        if (initialCheck != null) {
-            return initialCheck;
-        }
-
-        List<Dump> dumps = downloadDumpList(databaseName);
-        String dumpsCheck = dumpsCheck(dumps);
-        if (dumpsCheck != null) {
-            return dumpsCheck;
-        }
-
-        String result = executeRestoreDumps(getDownloadedDumpsForeRestore(dumps)).stream()
-                .collect(Collectors.joining(""));
-
-        setIfRequiredUserAccess(databaseName);
-
-        return result;
-    }
-
-    private String initialCheck(String databaseName) {
+    public String initialCheck(String databaseName) {
         CheckResult compatibility = checkCompatibility();
         if (!compatibility.isCorrect()) {
             return compatibility.getMessage();
@@ -231,7 +81,8 @@ public class DumpServiceImpl implements DumpService {
         return null;
     }
 
-    private String dumpsCheck(List<Dump> dumps) {
+    @Override
+    public String dumpsCheck(List<Dump> dumps) {
         if (dumps.isEmpty()) {
             return NO_DUMPS;
         }
@@ -249,7 +100,8 @@ public class DumpServiceImpl implements DumpService {
         return null;
     }
 
-    private List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
+    @Override
+    public List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
         List<ShortDump> dumpsForRestore = new ArrayList<>();
         for (Dump dump : dumps) {
             String[] filename = dump.getFilename().split("/");
@@ -261,32 +113,7 @@ public class DumpServiceImpl implements DumpService {
     }
 
     @Override
-    public List<String> executeRestoreDumps(List<ShortDump> dumps) {
-        List<String> result = new ArrayList<>();
-        log.info("Start restoring.. ");
-
-        for (ShortDump dump : dumps) {
-            switch (dump.getType()) {
-                case 'D':
-                    result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_FULL));
-                    break;
-                case 'I':
-                    result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_DIFFERENTIAL));
-                    break;
-                case 'L':
-                    result.add(executeDumpQuery(dump.getFilename(), Query.RESTORE_LOG));
-                    break;
-                default:
-                    break;
-            }
-        }
-        result.add(executeQuery(Query.RECOVERY));
-
-        return result;
-    }
-
-
-    private void downloadFile(String url, String outputFilename) {
+    public void downloadFile(String url, String outputFilename) {
         log.info("Downloading from " + url + " to " + outputFilename);
         try {
             FileUtils.copyURLToFile(
@@ -300,12 +127,13 @@ public class DumpServiceImpl implements DumpService {
         }
     }
 
-    private List<Dump> downloadDumpList(String databaseName) {
+    @Override
+    public List<Dump> downloadDumpList(String databaseName) {
         String response = restTemplate.getForObject(actualDumpsUrl + "?databaseName=" + databaseName, String.class);
 
         log.info("Received dump list " + response);
 
-        List<Dump> dumps = null;
+        List<Dump> dumps = new ArrayList<>();
 
         try {
             dumps = mapper.readValue(response, new TypeReference<List<Dump>>() {
@@ -337,7 +165,7 @@ public class DumpServiceImpl implements DumpService {
         int localVersion = getVersion();
         log.info("Received local mssql version " + localVersion);
 
-        return new CheckResult(true,
+        return new CheckResult(isSameGroup(serverVersion, localVersion),
                 String.format("Incompatible ms sql version: %d. Server version: %d", localVersion, serverVersion));
     }
 
@@ -357,15 +185,7 @@ public class DumpServiceImpl implements DumpService {
     }
 
     @Override
-    public void setIfRequiredUserAccess(String databaseName) {
-        if (UserAccess.MULTI_USER.getCode() != repository.getUserAccess(databaseName)) {
-            executeQuery(Query.USE_MASTER);
-            executeQuery(Query.SET_MULTI_USER);
-            executeQuery(Query.USE_MSDB);
-        }
-    }
-
-    private BigDecimal getTotalSize(List<Dump> dumps) {
+    public BigDecimal getTotalSize(List<Dump> dumps) {
         BigDecimal total = dumps.stream()
                 .map(x -> x.getBackupSize())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -375,7 +195,8 @@ public class DumpServiceImpl implements DumpService {
     }
 
     // todo: непонятно как на windows будет работать
-    private List<String> getDrivers(List<Dump> dumps) {
+    @Override
+    public List<String> getDrivers(List<Dump> dumps) {
         List<String> drivers = dumps.stream()
                 .map(x -> x.getFilename())
                 .distinct()
@@ -385,6 +206,7 @@ public class DumpServiceImpl implements DumpService {
         return drivers;
     }
 
+    @Override
     public CheckResult checkFreeSpace(List<String> drivers, BigDecimal sizeOfDumps) {
         long freeSpace = drivers.stream()
                 .map(x -> new File(x).getFreeSpace())
@@ -397,6 +219,7 @@ public class DumpServiceImpl implements DumpService {
                 String.format("Not enough free space on disk %s . Size of dumps is %s. Free space is %s", disks, sizeOfDumps, freeSpace));
     }
 
+    @Override
     public CheckResult checkExistingFiles(List<Dump> dumps) {
         List<Dump> dumpsWithExistingFile = dumps.stream()
                 .filter(x -> {

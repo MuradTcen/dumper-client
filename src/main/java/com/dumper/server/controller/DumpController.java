@@ -1,7 +1,7 @@
 package com.dumper.server.controller;
 
 import com.dumper.server.enums.Query;
-import com.dumper.server.service.impl.DumpServiceImpl;
+import com.dumper.server.service.impl.CommandServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter;
 @Slf4j
 public class DumpController {
 
-    private final DumpServiceImpl dumpService;
+    private final CommandServiceImpl dumpService;
 
     private final static String FULL_POSTFIX = "_full.bck";
     private final static String DIFFERENTIAL_POSTFIX = "_differential.bck";

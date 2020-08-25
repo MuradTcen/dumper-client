@@ -22,7 +22,7 @@ public enum Query {
     RECOVERY("RESTORE DATABASE [database] WITH RECOVERY"),
 
     LOG_BACKUP("BACKUP LOG [database] TO DISK = N'directory'"),
-    RESTORE_LOG("RESTORE LOG [database] FROM DISK = N'directory' WITH STATS = 10 WITH NORECOVERY");
+    RESTORE_LOG("RESTORE LOG [database] FROM DISK = N'directory' WITH NORECOVERY");
 
     private final String query;
 }

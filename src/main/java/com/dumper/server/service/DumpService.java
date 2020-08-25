@@ -1,22 +1,22 @@
 package com.dumper.server.service;
 
 import com.dumper.server.entity.CheckResult;
+import com.dumper.server.entity.Dump;
 import com.dumper.server.entity.ShortDump;
-import com.dumper.server.enums.Query;
 
-import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface DumpService {
-    String executeCommand(String[] command) throws IOException;
+    String initialCheck(String databaseName);
 
-    String executeDumpQuery(String filename, Query query);
+    String dumpsCheck(List<Dump> dumps);
 
-    String executeQuery(Query query);
+    List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps);
 
-    String restore(String databaseName);
+    void downloadFile(String url, String outputFilename);
 
-    List<String> executeRestoreDumps(List<ShortDump> dumps);
+    List<Dump> downloadDumpList(String databaseName);
 
     int getVersion();
 
@@ -26,5 +26,11 @@ public interface DumpService {
 
     CheckResult checkAvailability(String databaseName);
 
-    void setIfRequiredUserAccess(String databaseName);
+    BigDecimal getTotalSize(List<Dump> dumps);
+
+    List<String> getDrivers(List<Dump> dumps);
+
+    CheckResult checkFreeSpace(List<String> drivers, BigDecimal sizeOfDumps);
+
+    CheckResult checkExistingFiles(List<Dump> dumps);
 }
