@@ -52,7 +52,12 @@ public class CommandServiceImpl implements CommandService {
     private final DumpServiceImpl dumpService;
 
 
-    // todo: мне не нравится, как здесь получилось
+    // todo: не нравится, как здесь получилось
+    /**
+     * Выполняем через sqlcmd сформированный запрос, можем получить в ответ вывод из консоли и ошибки
+     * @param command
+     * @return
+     */
     @SneakyThrows
     @Override
     public String executeCommand(String[] command) {
@@ -82,6 +87,12 @@ public class CommandServiceImpl implements CommandService {
         return "Error during process..";
     }
 
+    /**
+     * Выполняем запрос с файлом дампа
+     * @param filename
+     * @param query
+     * @return
+     */
     @Override
     public String executeDumpQuery(String filename, Query query) {
         Command command = getCommandWithFileName(filename);
@@ -92,6 +103,12 @@ public class CommandServiceImpl implements CommandService {
                 executeCommand(getCommands(command)));
     }
 
+    /**
+     * Выполняем пользовательский sql-запрос
+     * @param userQuery
+     * @return
+     */
+    @Override
     public String executeUserQuery(String userQuery) {
         Command command = getCommandWithUserQuery(userQuery);
         setQuery(command, Query.USER_QUERY);
@@ -100,13 +117,17 @@ public class CommandServiceImpl implements CommandService {
                 executeCommand(getCommands(command)));
     }
 
-    @Override
-    public String executeQuery(Query query) {
+    private String executeQuery(Query query) {
         Command command = getBaseCommand();
         setQuery(command, query);
         return executeCommand(getCommands(command));
     }
 
+    /**
+     * "Параметризуем" команду
+     * @param command
+     * @return
+     */
     public String[] getCommands(Command command) {
         List<String> result = new ArrayList<>();
         result.add(BASE_COMMAND);
@@ -141,21 +162,21 @@ public class CommandServiceImpl implements CommandService {
         return result;
     }
 
-    public Command getCommandWithFileName(String filename) {
+    private Command getCommandWithFileName(String filename) {
         Command command = getBaseCommand();
         command.getParams().put(FILENAME_KEY.getKey(), filename);
 
         return command;
     }
 
-    public Command getCommandWithUserQuery(String query) {
+    private Command getCommandWithUserQuery(String query) {
         Command command = getBaseCommand();
         command.getParams().put(USER_QUERY_KEY.getKey(), query);
 
         return command;
     }
 
-    public Command getBaseCommand() {
+    private Command getBaseCommand() {
         Command command = new Command();
 
         command.setParams(new HashMap<String, String>() {{
@@ -171,6 +192,11 @@ public class CommandServiceImpl implements CommandService {
         return command;
     }
 
+    /**
+     * Делаем препроверку скачиваем лист дампов, выполняем дампы, переставляем в multi_user
+     * @param databaseName
+     * @return
+     */
     @Override
     public String restore(String databaseName) {
         String initialCheck = dumpService.initialCheck(databaseName);
@@ -192,7 +218,12 @@ public class CommandServiceImpl implements CommandService {
         return result;
     }
 
-
+    //todo: избавиться от хардкода в кейсах
+    /**
+     * В зависимости от типа дампа, выполняем запрос с нужным query
+     * @param dumps
+     * @return
+     */
     @Override
     public List<String> executeRestoreDumps(List<ShortDump> dumps) {
         List<String> result = new ArrayList<>();
@@ -218,6 +249,10 @@ public class CommandServiceImpl implements CommandService {
         return result;
     }
 
+    /**
+     * Переставляем в режим в multi_user
+     * @param databaseName
+     */
     @Override
     public void setIfRequiredUserAccess(String databaseName) {
         if (UserAccess.MULTI_USER.getCode() != repository.getUserAccess(databaseName)) {

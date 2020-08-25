@@ -11,7 +11,7 @@ public interface CommandService {
 
     String executeDumpQuery(String filename, Query query);
 
-    String executeQuery(Query query);
+    String executeUserQuery(String userQuery);
 
     String restore(String databaseName);
 
