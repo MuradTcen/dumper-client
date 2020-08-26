@@ -8,13 +8,13 @@ import com.dumper.server.repository.BackupsetRepository;
 import com.dumper.server.service.CommandService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -46,7 +46,8 @@ public class CommandServiceImpl implements CommandService {
     @Value(value = "${directory:directory}")
     private String directory;
 
-    private final static String BASE_COMMAND = "/opt/mssql-tools/bin/sqlcmd";
+    @Value(value = "${base-command:/opt/mssql-tools/bin/sqlcmd}")
+    private String baseCommand;
 
     private final BackupsetRepository repository;
     private final DumpServiceImpl dumpService;
@@ -58,7 +59,6 @@ public class CommandServiceImpl implements CommandService {
      * @param command
      * @return
      */
-    @SneakyThrows
     @Override
     public String executeCommand(String[] command) {
         Runtime runtime = Runtime.getRuntime();
@@ -80,8 +80,17 @@ public class CommandServiceImpl implements CommandService {
             }
             return out;
         } catch (Exception e) {
-            errorStream.close();
-            outStream.close();
+            try {
+                errorStream.close();
+            } catch (IOException ioException) {
+                log.error("Error during process: " + e.getLocalizedMessage());
+            }
+            try {
+                outStream.close();
+            } catch (IOException ioException) {
+                log.error("Error during process: " + e.getLocalizedMessage());
+            }
+
             log.error("Error during process: " + e.getLocalizedMessage());
         }
         return "Error during process..";
@@ -130,7 +139,7 @@ public class CommandServiceImpl implements CommandService {
      */
     public String[] getCommands(Command command) {
         List<String> result = new ArrayList<>();
-        result.add(BASE_COMMAND);
+        result.add(baseCommand);
 
         command.getParams().forEach((k, v) -> {
             if (k.contains("-")) {
@@ -176,6 +185,10 @@ public class CommandServiceImpl implements CommandService {
         return command;
     }
 
+    /**
+     *
+     * @return
+     */
     private Command getBaseCommand() {
         Command command = new Command();
 
@@ -194,8 +207,8 @@ public class CommandServiceImpl implements CommandService {
 
     /**
      * Делаем препроверку скачиваем лист дампов, выполняем дампы, переставляем в multi_user
-     * @param databaseName
-     * @return
+     * @param databaseName название БД
+     * @return ответ с результатом
      */
     @Override
     public String restore(String databaseName) {

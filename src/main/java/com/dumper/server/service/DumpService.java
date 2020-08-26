@@ -3,7 +3,6 @@ package com.dumper.server.service;
 import com.dumper.server.entity.Dump;
 import com.dumper.server.entity.ShortDump;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface DumpService {
