@@ -1,10 +1,10 @@
 package com.dumper.server.service.impl;
 
+import com.dumper.server.dao.DumpDao;
 import com.dumper.server.entity.Dump;
 import com.dumper.server.entity.ShortDump;
 import com.dumper.server.enums.Query;
 import com.dumper.server.enums.UserAccess;
-import com.dumper.server.repository.BackupsetRepository;
 import com.dumper.server.service.CommandService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.dumper.server.enums.Key.*;
@@ -49,8 +50,9 @@ public class CommandServiceImpl implements CommandService {
     @Value(value = "${base-command:/opt/mssql-tools/bin/sqlcmd}")
     private String baseCommand;
 
-    private final BackupsetRepository repository;
+    private final DumpDao dao;
     private final DumpServiceImpl dumpService;
+    private final int TIMEOUT_IN_MINUTES = 20;
 
 
     // todo: не нравится, как здесь получилось
@@ -68,7 +70,7 @@ public class CommandServiceImpl implements CommandService {
         log.info("Start executing command: " + Arrays.toString(command));
         try {
             Process proc = runtime.exec(command);
-            proc.waitFor();
+            proc.waitFor(TIMEOUT_IN_MINUTES, TimeUnit.MINUTES);
             errorStream = proc.getErrorStream();
             outStream = proc.getInputStream();
             errors = IOUtils.toString(errorStream, StandardCharsets.UTF_8);
@@ -268,7 +270,7 @@ public class CommandServiceImpl implements CommandService {
      */
     @Override
     public void setIfRequiredUserAccess(String databaseName) {
-        if (UserAccess.MULTI_USER.getCode() != repository.getUserAccess(databaseName)) {
+        if (UserAccess.MULTI_USER.getCode() != dao.getUserAccess(databaseName)) {
             executeQuery(Query.USE_MASTER);
             executeQuery(Query.SET_MULTI_USER);
             executeQuery(Query.USE_MSDB);

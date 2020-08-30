@@ -1,23 +1,17 @@
 package com.dumper.server.service.impl;
 
+import com.dumper.server.dao.DumpDao;
 import com.dumper.server.entity.CheckResult;
 import com.dumper.server.entity.Dump;
 import com.dumper.server.entity.ShortDump;
-import com.dumper.server.enums.Query;
-import com.dumper.server.enums.UserAccess;
 import com.dumper.server.enums.Version;
-import com.dumper.server.repository.BackupsetRepository;
-import com.dumper.server.service.CommandService;
 import com.dumper.server.service.DumpService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
@@ -25,19 +19,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static com.dumper.server.enums.Key.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -57,7 +45,7 @@ public class DumpServiceImpl implements DumpService {
     @Value(value = "${api.server.download.url}")
     private String downloadUrl;
 
-    private final BackupsetRepository repository;
+    private final DumpDao dao;
     private final ObjectMapper mapper;
     private final RestTemplate restTemplate;
 
@@ -167,7 +155,7 @@ public class DumpServiceImpl implements DumpService {
     }
 
     private int getVersion() {
-        String version = repository.getVersion();
+        String version = dao.getVersion();
 
         Pattern pattern = Pattern.compile("Server \\d{4}");
         Matcher matcher = pattern.matcher(version);
@@ -194,7 +182,7 @@ public class DumpServiceImpl implements DumpService {
     }
 
     private CheckResult checkAvailability(String databaseName) {
-        int count = repository.getCountConnectionsForDatabase(databaseName);
+        int count = dao.getCountConnectionsForDatabase(databaseName);
         log.info("Count " + count + " connections to database " + databaseName);
 
         return new CheckResult(count == 0,
