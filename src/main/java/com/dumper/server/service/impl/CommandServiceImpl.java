@@ -58,8 +58,8 @@ public class CommandServiceImpl implements CommandService {
     // todo: не нравится, как здесь получилось
     /**
      * Выполняем через sqlcmd сформированный запрос, можем получить в ответ вывод из консоли и ошибки
-     * @param command
-     * @return
+     * @param command команда (массив ключей) для выполнения
+     * @return результат выполнения запроса
      */
     @Override
     public String executeCommand(String[] command) {
@@ -100,9 +100,9 @@ public class CommandServiceImpl implements CommandService {
 
     /**
      * Выполняем запрос с файлом дампа
-     * @param filename
-     * @param query
-     * @return
+     * @param filename название файла
+     * @param query тип запроса
+     * @return результат выполнения команды
      */
     @Override
     public String executeDumpQuery(String filename, Query query) {
@@ -116,8 +116,8 @@ public class CommandServiceImpl implements CommandService {
 
     /**
      * Выполняем пользовательский sql-запрос
-     * @param userQuery
-     * @return
+     * @param userQuery пользовательский sql-запрос
+     * @return результат выполнеия запроса
      */
     @Override
     public String executeUserQuery(String userQuery) {
@@ -136,8 +136,8 @@ public class CommandServiceImpl implements CommandService {
 
     /**
      * "Параметризуем" команду
-     * @param command
-     * @return
+     * @param command базовая команда
+     * @return массив ключей команды
      */
     public String[] getCommands(Command command) {
         List<String> result = new ArrayList<>();
@@ -233,11 +233,10 @@ public class CommandServiceImpl implements CommandService {
         return result;
     }
 
-    //todo: избавиться от хардкода в кейсах
     /**
      * В зависимости от типа дампа, выполняем запрос с нужным query
      * @param dumps
-     * @return
+     * @return результат выполнения команд восстановления
      */
     @Override
     public List<String> executeRestoreDumps(List<ShortDump> dumps) {
@@ -266,7 +265,7 @@ public class CommandServiceImpl implements CommandService {
 
     /**
      * Переставляем в режим в multi_user
-     * @param databaseName
+     * @param databaseName название БД
      */
     @Override
     public void setIfRequiredUserAccess(String databaseName) {

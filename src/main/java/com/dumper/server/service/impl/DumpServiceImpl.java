@@ -55,7 +55,7 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Первоначальные проверки, перед скачиванием дампов
-     * @param databaseName
+     * @param databaseName название БД
      * @return
      */
     @Override
@@ -77,8 +77,8 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Проверки с полученными дампами
-     * @param dumps
-     * @return
+     * @param dumps лист проверяемых дампов
+     * @return строка с ошибками
      */
     @Override
     public String dumpsCheck(List<Dump> dumps) {
@@ -102,8 +102,8 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Получаем список дампов для восставновления
-     * @param dumps
-     * @return
+     * @param dumps список дампов
+     * @return список дампов для восстановления
      */
     @Override
     public List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
@@ -133,8 +133,8 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Скачиваем список актуальных дампов
-     * @param databaseName
-     * @return
+     * @param databaseName название БД
+     * @return список скаченных дампов
      */
     @Override
     public List<Dump> downloadDumpList(String databaseName) {
