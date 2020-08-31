@@ -12,7 +12,7 @@
 	<artifactId>dumper-client</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>dumper-client</name>
-	<description>Server for creating dump</description>
+	<description>Client for downloading and restoring dumps from server</description>
 
 	<properties>
 		<java.version>1.8</java.version>
