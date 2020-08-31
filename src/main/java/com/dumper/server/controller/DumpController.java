@@ -18,8 +18,9 @@ public class DumpController {
     private final CommandServiceImpl dumpService;
 
     @GetMapping(path = "start-restore")
-    public ResponseEntity<String> tryRestoreDumps(@RequestParam String databaseName) {
-        return ResponseEntity.ok().body(dumpService.restore(databaseName));
+    public ResponseEntity<String> tryRestoreDumps(@RequestParam String databaseName,
+                                                  @RequestParam(required = false) String path) {
+        return ResponseEntity.ok().body(dumpService.restore(databaseName, path));
     }
 
     @GetMapping(path = "execute-query")

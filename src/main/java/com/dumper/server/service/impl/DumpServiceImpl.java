@@ -55,11 +55,13 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Первоначальные проверки, перед скачиванием дампов
+     *
      * @param databaseName название БД
+     * @param path         путь для сохранения дампов
      * @return
      */
     @Override
-    public String initialCheck(String databaseName) {
+    public String initialCheck(String databaseName, String path) {
         StringBuilder result = new StringBuilder();
 
         CheckResult compatibility = checkCompatibility();
@@ -72,11 +74,16 @@ public class DumpServiceImpl implements DumpService {
             result.append("\n" + availability.getMessage());
         }
 
+        if (path != null) {
+            //todo: добавить проверку существования path, усли он не null
+        }
+
         return result.toString();
     }
 
     /**
      * Проверки с полученными дампами
+     *
      * @param dumps лист проверяемых дампов
      * @return строка с ошибками
      */
@@ -101,17 +108,20 @@ public class DumpServiceImpl implements DumpService {
     }
 
     /**
-     * Получаем список дампов для восставновления
+     * Получаем список дампов для восстановления
+     *
      * @param dumps список дампов
+     * @param path  путь для сохранения дампов
      * @return список дампов для восстановления
      */
     @Override
-    public List<ShortDump> getDownloadedDumpsForeRestore(List<Dump> dumps) {
+    public List<ShortDump> getDownloadedDumpsForRestore(List<Dump> dumps, String path) {
         List<ShortDump> dumpsForRestore = new ArrayList<>();
         for (Dump dump : dumps) {
             String[] filename = dump.getFilename().split("/");
             String name = filename[filename.length - 1];
-            downloadFile(downloadUrl + name, directory + name);
+            String output = path != null ? path + name : directory + name;
+            downloadFile(downloadUrl + name, output);
             dumpsForRestore.add(new ShortDump(name, dump.getType()));
         }
         return dumpsForRestore;
@@ -133,6 +143,7 @@ public class DumpServiceImpl implements DumpService {
 
     /**
      * Скачиваем список актуальных дампов
+     *
      * @param databaseName название БД
      * @return список скаченных дампов
      */

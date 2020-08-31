@@ -210,11 +210,12 @@ public class CommandServiceImpl implements CommandService {
     /**
      * Делаем препроверку скачиваем лист дампов, выполняем дампы, переставляем в multi_user
      * @param databaseName название БД
+     * @param path путь для сохранения дампов
      * @return ответ с результатом
      */
     @Override
-    public String restore(String databaseName) {
-        String initialCheck = dumpService.initialCheck(databaseName);
+    public String restore(String databaseName, String path) {
+        String initialCheck = dumpService.initialCheck(databaseName, path);
         if (!initialCheck.isEmpty()) {
             return initialCheck;
         }
@@ -225,7 +226,7 @@ public class CommandServiceImpl implements CommandService {
             return dumpsCheck;
         }
 
-        String result = executeRestoreDumps(dumpService.getDownloadedDumpsForeRestore(dumps)).stream()
+        String result = executeRestoreDumps(dumpService.getDownloadedDumpsForRestore(dumps, path)).stream()
                 .collect(Collectors.joining(""));
 
         setIfRequiredUserAccess(databaseName);
