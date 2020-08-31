@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.dumper</groupId>
-	<artifactId>server</artifactId>
+	<artifactId>dumper-client</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>server</name>
+	<name>dumper-client</name>
 	<description>Server for creating dump</description>
 
 	<properties>
