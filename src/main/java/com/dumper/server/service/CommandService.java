@@ -13,7 +13,7 @@ public interface CommandService {
 
     String executeUserQuery(String userQuery);
 
-    String restore(String databaseName, String path);
+    String restore(String databaseName, String path, String date);
 
     List<String> executeRestoreDumps(List<ShortDump> dumps);
 

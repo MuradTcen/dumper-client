@@ -19,8 +19,9 @@ public class DumpController {
 
     @GetMapping(path = "start-restore")
     public ResponseEntity<String> tryRestoreDumps(@RequestParam String databaseName,
-                                                  @RequestParam(required = false) String path) {
-        return ResponseEntity.ok().body(dumpService.restore(databaseName, path));
+                                                  @RequestParam(required = false) String path,
+                                                  @RequestParam(required = false) String date) {
+        return ResponseEntity.ok().body(dumpService.restore(databaseName, path, date));
     }
 
     @GetMapping(path = "execute-query")

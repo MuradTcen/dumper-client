@@ -145,11 +145,16 @@ public class DumpServiceImpl implements DumpService {
      * Скачиваем список актуальных дампов
      *
      * @param databaseName название БД
+     * @param date дата актуализации
      * @return список скаченных дампов
      */
     @Override
-    public List<Dump> downloadDumpList(String databaseName) {
-        String response = restTemplate.getForObject(actualDumpsUrl + "?databaseName=" + databaseName, String.class);
+    public List<Dump> downloadDumpList(String databaseName, String date) {
+        String url = actualDumpsUrl + "?databaseName=" + databaseName;
+        if(date != null) {
+            url += "&date=" + date;
+        }
+        String response = restTemplate.getForObject(url, String.class);
 
         log.info("Received dump list " + response);
 

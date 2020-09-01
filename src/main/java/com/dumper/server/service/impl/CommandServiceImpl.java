@@ -211,16 +211,17 @@ public class CommandServiceImpl implements CommandService {
      * Делаем препроверку скачиваем лист дампов, выполняем дампы, переставляем в multi_user
      * @param databaseName название БД
      * @param path путь для сохранения дампов
+     * @param date дата актуализации
      * @return ответ с результатом
      */
     @Override
-    public String restore(String databaseName, String path) {
+    public String restore(String databaseName, String path, String date) {
         String initialCheck = dumpService.initialCheck(databaseName, path);
         if (!initialCheck.isEmpty()) {
             return initialCheck;
         }
 
-        List<Dump> dumps = dumpService.downloadDumpList(databaseName);
+        List<Dump> dumps = dumpService.downloadDumpList(databaseName, date);
         String dumpsCheck = dumpService.dumpsCheck(dumps);
         if (!dumpsCheck.isEmpty()) {
             return dumpsCheck;

@@ -13,6 +13,6 @@ public interface DumpService {
 
     List<ShortDump> getDownloadedDumpsForRestore(List<Dump> dumps, String path);
 
-    List<Dump> downloadDumpList(String databaseName);
+    List<Dump> downloadDumpList(String databaseName, String date);
 
 }
